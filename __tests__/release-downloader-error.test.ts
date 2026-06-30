@@ -30,6 +30,7 @@ const createSettings = (
   extractAssets: false,
   extractPath: '',
   outFilePath: '',
+  serverType: 'github',
   ...overrides
 })
 
@@ -43,7 +44,9 @@ const createRelease = (
   assets: [
     {
       name: 'test-1.txt',
-      url: 'https://api.github.com/repos/robinraju/probable-potato/releases/assets/1'
+      url: 'https://api.github.com/repos/robinraju/probable-potato/releases/assets/1',
+      browser_download_url:
+        'https://github.com/robinraju/probable-potato/releases/download/1.0.0/test-1.txt'
     }
   ],
   tarball_url:
@@ -153,7 +156,9 @@ describe('ReleaseDownloader error handling', () => {
           assets: [
             {
               name: 'empty.txt',
-              url: 'https://api.github.com/repos/robinraju/empty-assets/releases/assets/1'
+              url: 'https://api.github.com/repos/robinraju/empty-assets/releases/assets/1',
+              browser_download_url:
+                'https://github.com/robinraju/empty-assets/releases/download/1.0.0/empty.txt'
             }
           ]
         })

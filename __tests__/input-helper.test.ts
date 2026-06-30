@@ -69,7 +69,8 @@ describe('getInputs', () => {
       zipBall: false,
       extractAssets: false,
       outFilePath: path.resolve(workspacePath, 'downloads/output'),
-      extractPath: path.resolve(workspacePath, 'downloads/output')
+      extractPath: path.resolve(workspacePath, 'downloads/output'),
+      serverType: 'github'
     })
   })
 

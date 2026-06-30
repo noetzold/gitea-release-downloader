@@ -22,9 +22,16 @@ export class ReleaseDownloader {
 
   private apiRoot: string
 
-  constructor(httpClient: thc.HttpClient, githubApiUrl: string) {
+  private serverType: string
+
+  constructor(
+    httpClient: thc.HttpClient,
+    githubApiUrl: string,
+    serverType: string = 'github'
+  ) {
     this.httpClient = httpClient
     this.apiRoot = githubApiUrl
+    this.serverType = serverType
   }
 
   async download(
@@ -81,7 +88,12 @@ export class ReleaseDownloader {
   ): Promise<GithubRelease> {
     core.info(`Fetching latest release for repo ${repoPath}`)
 
-    const headers: IHeaders = { Accept: 'application/vnd.github.v3+json' }
+    const headers: IHeaders = {
+      Accept:
+        this.serverType === 'gitea'
+          ? 'application/json'
+          : 'application/vnd.github.v3+json'
+    }
 
     const url = !preRelease
       ? `${this.apiRoot}/repos/${repoPath}/releases/latest`
@@ -137,7 +149,12 @@ export class ReleaseDownloader {
       throw new ConfigError('Please input a valid tag')
     }
 
-    const headers: IHeaders = { Accept: 'application/vnd.github.v3+json' }
+    const headers: IHeaders = {
+      Accept:
+        this.serverType === 'gitea'
+          ? 'application/json'
+          : 'application/vnd.github.v3+json'
+    }
     const url = `${this.apiRoot}/repos/${repoPath}/releases/tags/${tag}`
 
     const response = await this.httpClient.get(url, headers)
@@ -172,7 +189,12 @@ export class ReleaseDownloader {
       throw new ConfigError('Please input a valid release ID')
     }
 
-    const headers: IHeaders = { Accept: 'application/vnd.github.v3+json' }
+    const headers: IHeaders = {
+      Accept:
+        this.serverType === 'gitea'
+          ? 'application/json'
+          : 'application/vnd.github.v3+json'
+    }
     const url = `${this.apiRoot}/repos/${repoPath}/releases/${id}`
 
     const response = await this.httpClient.get(url, headers)
@@ -210,7 +232,10 @@ export class ReleaseDownloader {
 
           const dData: DownloadMetaData = {
             fileName: asset.name,
-            url: asset['url'],
+            url:
+              this.serverType === 'gitea'
+                ? asset.browser_download_url
+                : asset['url'],
             isTarBallOrZipBall: false
           }
           downloads.push(dData)

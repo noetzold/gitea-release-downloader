@@ -26,7 +26,11 @@ export async function run(): Promise<void> {
       credentialHandler
     ])
 
-    const downloader = new ReleaseDownloader(httpClient, githubApiUrl)
+    const downloader = new ReleaseDownloader(
+      httpClient,
+      githubApiUrl,
+      downloadSettings.serverType
+    )
 
     const res: string[] = await downloader.download(downloadSettings)
 

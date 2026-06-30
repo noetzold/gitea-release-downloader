@@ -31,6 +31,7 @@ const createSettings = (
   extractAssets: false,
   outFilePath: defaultOutputPath,
   extractPath: defaultOutputPath,
+  serverType: 'github',
   ...overrides
 })
 
@@ -95,7 +96,8 @@ test('runs the downloader and extracts every downloaded asset', async () => {
   ])
   expect(releaseDownloaderConstructor).toHaveBeenCalledWith(
     expect.any(Object),
-    'https://api.github.com'
+    'https://api.github.com',
+    'github'
   )
   expect(download).toHaveBeenCalledWith(settings)
   expect(extract).toHaveBeenNthCalledWith(1, 'first.zip', extractedOutputPath)

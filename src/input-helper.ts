@@ -50,6 +50,13 @@ export function getInputs(): IReleaseDownloadSettings {
     ? path.resolve(githubWorkspacePath, extractPathInput)
     : outFilePath
 
+  const serverType = core.getInput('server-type') || 'github'
+  if (serverType !== 'github' && serverType !== 'gitea') {
+    throw new ConfigError(
+      `Invalid server-type '${serverType}'. Supported values: github, gitea`
+    )
+  }
+
   return {
     sourceRepoPath: repositoryPath,
     isLatest: latestFlag,
@@ -61,6 +68,7 @@ export function getInputs(): IReleaseDownloadSettings {
     zipBall: core.getBooleanInput('zipBall'),
     extractAssets: core.getBooleanInput('extract'),
     outFilePath,
-    extractPath
+    extractPath,
+    serverType
   }
 }

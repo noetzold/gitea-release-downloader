@@ -126,6 +126,49 @@ beforeEach(() => {
       200,
       `${__dirname}/resource/assets/tar-zip-ball-only-repo.zip`
     )
+
+  // Gitea API mocks
+  nock('https://my-gitea.com/api/v1')
+    .get('/repos/owner/repo/releases/latest')
+    .reply(200, readFromFile('7-gitea-release-latest.json'))
+
+  nock('https://my-gitea.com/api/v1')
+    .get('/repos/owner/repo/releases/tags/v2.0.0')
+    .reply(200, readFromFile('7-gitea-release-latest.json'))
+
+  nock('https://my-gitea.com/api/v1')
+    .get('/repos/owner/repo/releases/12345')
+    .reply(200, readFromFile('7-gitea-release-latest.json'))
+
+  nock('https://my-gitea.com')
+    .get('/owner/repo/releases/download/v2.0.0/app-linux-amd64')
+    .replyWithFile(200, `${__dirname}/resource/assets/test-1.txt`)
+
+  nock('https://my-gitea.com')
+    .get('/owner/repo/releases/download/v2.0.0/app-darwin-amd64')
+    .replyWithFile(200, `${__dirname}/resource/assets/test-2.txt`)
+
+  nock('https://my-gitea.com/api/v1')
+    .get('/repos/owner/repo/releases')
+    .reply(200, readFromFile('8-gitea-with-prerelease.json'))
+
+  nock('https://my-gitea.com')
+    .get('/owner/repo/releases/download/v2.1.0-rc1/pre-release.txt')
+    .replyWithFile(200, `${__dirname}/resource/assets/pre-release.txt`)
+
+  nock('https://my-gitea.com')
+    .get('/owner/repo/archive/v2.0.0.tar.gz')
+    .replyWithFile(
+      200,
+      `${__dirname}/resource/assets/tar-zip-ball-only-repo.tar.gz`
+    )
+
+  nock('https://my-gitea.com')
+    .get('/owner/repo/archive/v2.0.0.zip')
+    .replyWithFile(
+      200,
+      `${__dirname}/resource/assets/tar-zip-ball-only-repo.zip`
+    )
 })
 
 afterEach(async () => {
@@ -156,7 +199,8 @@ test('Download all files from public repo', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(7)
@@ -174,7 +218,8 @@ test('Download single file from public repo', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(1)
@@ -192,7 +237,8 @@ test('Fail loudly if given filename is not found in a release', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = downloader.download(downloadSettings)
   await expect(result).rejects.toThrow(
@@ -212,7 +258,8 @@ test('Fail loudly if release is not identified', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = downloader.download(downloadSettings)
   await expect(result).rejects.toThrow(
@@ -232,7 +279,8 @@ test('Download files with wildcard from public repo', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(2)
@@ -250,7 +298,8 @@ test('Download single file with wildcard from public repo', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(1)
@@ -268,7 +317,8 @@ test('Download multiple pdf files with wildcard filename', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(2)
@@ -286,7 +336,8 @@ test('Download a csv file with wildcard filename', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(1)
@@ -306,7 +357,8 @@ test('Download file from Github Enterprise server', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(1)
@@ -324,7 +376,8 @@ test('Download file from release identified by ID', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(1)
@@ -342,7 +395,8 @@ test('Download all archive files from public repo', async () => {
     zipBall: false,
     extractAssets: true,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   if (downloadSettings.extractAssets) {
@@ -382,7 +436,8 @@ test('Fail when a release with no assets are obtained', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = downloader.download(downloadSettings)
   await expect(result).rejects.toThrow(
@@ -402,7 +457,8 @@ test('Download from latest prerelease', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(1)
@@ -420,7 +476,8 @@ test('Fail when a release with no prerelease is obtained', async () => {
     zipBall: false,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
   const result = downloader.download(downloadSettings)
   await expect(result).rejects.toThrow(
@@ -440,9 +497,161 @@ test('Download from a release containing only tarBall & zipBall', async () => {
     zipBall: true,
     extractAssets: false,
     outFilePath: outputFilePath,
-    extractPath: outputFilePath
+    extractPath: outputFilePath,
+    serverType: 'github'
   }
 
   const result = await downloader.download(downloadSettings)
   expect(result.length).toBe(2)
 })
+
+// Gitea tests
+test('Download file from Gitea server using latest release', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: true,
+    preRelease: false,
+    tag: '',
+    id: '',
+    fileName: 'app-linux-amd64',
+    tarBall: false,
+    zipBall: false,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(1)
+}, 10000)
+
+test('Download all files from Gitea server', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: true,
+    preRelease: false,
+    tag: '',
+    id: '',
+    fileName: '*',
+    tarBall: false,
+    zipBall: false,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(2)
+}, 10000)
+
+test('Download file from Gitea server by tag', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: false,
+    preRelease: false,
+    tag: 'v2.0.0',
+    id: '',
+    fileName: 'app-linux-amd64',
+    tarBall: false,
+    zipBall: false,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(1)
+}, 10000)
+
+test('Download file from Gitea server by release ID', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: false,
+    preRelease: false,
+    tag: '',
+    id: '12345',
+    fileName: 'app-linux-amd64',
+    tarBall: false,
+    zipBall: false,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(1)
+}, 10000)
+
+test('Download from Gitea latest prerelease', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: true,
+    preRelease: true,
+    tag: '',
+    id: '',
+    fileName: 'pre-release.txt',
+    tarBall: false,
+    zipBall: false,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(1)
+}, 10000)
+
+test('Download tarball and zipball from Gitea server', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: true,
+    preRelease: false,
+    tag: '',
+    id: '',
+    fileName: '',
+    tarBall: true,
+    zipBall: true,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(2)
+}, 10000)

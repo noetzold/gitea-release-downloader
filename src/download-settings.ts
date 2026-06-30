@@ -53,4 +53,9 @@ export interface IReleaseDownloadSettings {
    * Path to extract files
    */
   extractPath: string
+
+  /**
+   * The type of server: 'github' or 'gitea'
+   */
+  serverType: string
 }
