@@ -99,6 +99,29 @@ describe('ReleaseDownloader error handling', () => {
     ).rejects.toThrow(HttpError)
   })
 
+  test('throws HttpError when Gitea latest release request fails', async () => {
+    const credentialHandler = new handlers.BearerCredentialHandler('', false)
+    const httpClient = new thc.HttpClient('gh-api-client', [credentialHandler])
+    const giteaDownloader = new ReleaseDownloader(
+      httpClient,
+      'https://my-gitea.com/api/v1',
+      'gitea'
+    )
+
+    nock('https://my-gitea.com/api/v1')
+      .get('/repos/robinraju/probable-potato/releases/latest')
+      .reply(404)
+
+    await expect(
+      giteaDownloader.download(
+        createSettings({
+          outFilePath: outputFilePath,
+          serverType: 'gitea'
+        })
+      )
+    ).rejects.toThrow(HttpError)
+  })
+
   test('throws HttpError when the release-by-tag request fails', async () => {
     nock('https://api.github.com')
       .get('/repos/robinraju/probable-potato/releases/tags/v9.9.9')

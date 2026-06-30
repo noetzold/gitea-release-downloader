@@ -34,6 +34,15 @@ export class ReleaseDownloader {
     this.serverType = serverType
   }
 
+  private getApiHeaders(): IHeaders {
+    return {
+      Accept:
+        this.serverType === 'gitea'
+          ? 'application/json'
+          : 'application/vnd.github.v3+json'
+    }
+  }
+
   async download(
     downloadSettings: IReleaseDownloadSettings
   ): Promise<string[]> {
@@ -88,12 +97,7 @@ export class ReleaseDownloader {
   ): Promise<GithubRelease> {
     core.info(`Fetching latest release for repo ${repoPath}`)
 
-    const headers: IHeaders = {
-      Accept:
-        this.serverType === 'gitea'
-          ? 'application/json'
-          : 'application/vnd.github.v3+json'
-    }
+    const headers: IHeaders = this.getApiHeaders()
 
     const url = !preRelease
       ? `${this.apiRoot}/repos/${repoPath}/releases/latest`
@@ -149,12 +153,7 @@ export class ReleaseDownloader {
       throw new ConfigError('Please input a valid tag')
     }
 
-    const headers: IHeaders = {
-      Accept:
-        this.serverType === 'gitea'
-          ? 'application/json'
-          : 'application/vnd.github.v3+json'
-    }
+    const headers: IHeaders = this.getApiHeaders()
     const url = `${this.apiRoot}/repos/${repoPath}/releases/tags/${tag}`
 
     const response = await this.httpClient.get(url, headers)
@@ -189,12 +188,7 @@ export class ReleaseDownloader {
       throw new ConfigError('Please input a valid release ID')
     }
 
-    const headers: IHeaders = {
-      Accept:
-        this.serverType === 'gitea'
-          ? 'application/json'
-          : 'application/vnd.github.v3+json'
-    }
+    const headers: IHeaders = this.getApiHeaders()
     const url = `${this.apiRoot}/repos/${repoPath}/releases/${id}`
 
     const response = await this.httpClient.get(url, headers)
