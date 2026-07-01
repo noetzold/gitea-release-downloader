@@ -208,6 +208,30 @@ export class ReleaseDownloader {
     return release
   }
 
+  /**
+   * Resolves the download URL for a Gitea asset.
+   * Falls back to API endpoint if browser_download_url is missing or relative.
+   */
+  private resolveGiteaAssetUrl(
+    asset: { id: number; browser_download_url?: string },
+    repoPath: string,
+    releaseId: number
+  ): string {
+    const rawUrl = asset.browser_download_url
+    if (rawUrl) {
+      try {
+        new URL(rawUrl)
+        return rawUrl
+      } catch {
+        // Relative URL — prepend server base URL
+        const baseUrl = this.apiRoot.replace(/\/api\/v\d+\/?$/, '')
+        return `${baseUrl}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`
+      }
+    }
+    // No browser_download_url — use the API asset endpoint
+    return `${this.apiRoot}/repos/${repoPath}/releases/${releaseId}/assets/${asset.id}`
+  }
+
   private resolveAssets(
     ghRelease: GithubRelease,
     downloadSettings: IReleaseDownloadSettings
@@ -228,7 +252,11 @@ export class ReleaseDownloader {
             fileName: asset.name,
             url:
               this.serverType === 'gitea'
-                ? asset.browser_download_url
+                ? this.resolveGiteaAssetUrl(
+                    asset,
+                    downloadSettings.sourceRepoPath,
+                    ghRelease.id
+                  )
                 : asset['url'],
             isTarBallOrZipBall: false
           }

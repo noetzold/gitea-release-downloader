@@ -169,6 +169,19 @@ beforeEach(() => {
       200,
       `${__dirname}/resource/assets/tar-zip-ball-only-repo.zip`
     )
+
+  // Gitea with missing/relative browser_download_url
+  nock('https://my-gitea.com/api/v1')
+    .get('/repos/owner/repo/releases/tags/v3.0.0')
+    .reply(200, readFromFile('9-gitea-no-browser-url.json'))
+
+  nock('https://my-gitea.com/api/v1')
+    .get('/repos/owner/repo/releases/54321/assets/200')
+    .replyWithFile(200, `${__dirname}/resource/assets/test-1.txt`)
+
+  nock('https://my-gitea.com')
+    .get('/owner/repo/releases/download/v3.0.0/app-darwin-amd64')
+    .replyWithFile(200, `${__dirname}/resource/assets/test-2.txt`)
 })
 
 afterEach(async () => {
@@ -654,4 +667,54 @@ test('Download tarball and zipball from Gitea server', async () => {
   }
   const result = await giteaDownloader.download(downloadSettings)
   expect(result.length).toBe(2)
+}, 10000)
+
+test('Download from Gitea with missing browser_download_url (API fallback)', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: false,
+    preRelease: false,
+    tag: 'v3.0.0',
+    id: '',
+    fileName: 'app-linux-amd64',
+    tarBall: false,
+    zipBall: false,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(1)
+}, 10000)
+
+test('Download from Gitea with relative browser_download_url', async () => {
+  const giteaDownloader = new ReleaseDownloader(
+    httpClent,
+    'https://my-gitea.com/api/v1',
+    'gitea'
+  )
+
+  const downloadSettings: IReleaseDownloadSettings = {
+    sourceRepoPath: 'owner/repo',
+    isLatest: false,
+    preRelease: false,
+    tag: 'v3.0.0',
+    id: '',
+    fileName: 'app-darwin-amd64',
+    tarBall: false,
+    zipBall: false,
+    extractAssets: false,
+    outFilePath: outputFilePath,
+    extractPath: outputFilePath,
+    serverType: 'gitea'
+  }
+  const result = await giteaDownloader.download(downloadSettings)
+  expect(result.length).toBe(1)
 }, 10000)

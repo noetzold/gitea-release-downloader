@@ -1,4 +1,5 @@
 interface GhAsset {
+  id: number
   name: string
   url: string
   browser_download_url: string
