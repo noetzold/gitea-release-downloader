@@ -69,7 +69,8 @@ describe('getInputs', () => {
       zipBall: false,
       extractAssets: false,
       outFilePath: path.resolve(workspacePath, 'downloads/output'),
-      extractPath: path.resolve(workspacePath, 'downloads/output')
+      extractPath: path.resolve(workspacePath, 'downloads/output'),
+      serverType: 'github'
     })
   })
 
@@ -151,6 +152,15 @@ describe('getInputs', () => {
     expect(() => getInputs()).toThrow(ConfigError)
     expect(() => getInputs()).toThrow(
       "Invalid inputs. latest=true, tag=v1.0.0, and releaseId=123 can't coexist"
+    )
+  })
+
+  test('throws a config error for an invalid server-type', () => {
+    stringInputs['server-type'] = 'gitlab'
+
+    expect(() => getInputs()).toThrow(ConfigError)
+    expect(() => getInputs()).toThrow(
+      "Invalid server-type 'gitlab'. Supported values: github, gitea"
     )
   })
 })

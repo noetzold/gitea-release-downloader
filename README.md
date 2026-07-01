@@ -2,7 +2,7 @@
 
 [![Build and Test](https://github.com/robinraju/release-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/robinraju/release-downloader/actions/workflows/ci.yml)
 
-A Github Action to download assets from Github release. It can download
+A Github Action to download assets from Github or Gitea releases. It can download
 specified files from both private and public repositories.
 
 ## Usage
@@ -62,10 +62,15 @@ specified files from both private and public repositories.
     # eg: token: ${{ secrets.MY_TOKEN }}
     token: ''
 
-    # The URL of the Github API, only use this input if you are using Github Enterprise
+    # The URL of the Github API, only use this input if you are using Github Enterprise or Gitea
     # Default: "https://api.github.com"
     # Use http(s)://[hostname]/api/v3 to access the API for GitHub Enterprise Server
+    # Use http(s)://[hostname]/api/v1 to access the API for Gitea
     github-api-url: ''
+
+    # The type of server to download from.
+    # Supported values: 'github' (default) and 'gitea'
+    server-type: 'github'
 ```
 
 ### Output variables
@@ -189,6 +194,19 @@ ${{steps.<step-id>.outputs.tag_name}}
     fileName: 'foo.zip'
     latest: true
     preRelease: true
+```
+
+### Download from a Gitea instance
+
+```yaml
+- uses: robinraju/release-downloader@v1
+  with:
+    repository: 'owner/repo'
+    latest: true
+    fileName: 'foo.zip'
+    github-api-url: 'https://my-gitea.com/api/v1'
+    server-type: 'gitea'
+    token: ${{ secrets.GITEA_TOKEN }}
 ```
 
 ## Development notes

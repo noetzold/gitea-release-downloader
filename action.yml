@@ -60,8 +60,13 @@ inputs:
   github-api-url:
     description:
       'The URL of the Github API, only use this input if you are using Github
-      Enterprise'
+      Enterprise or Gitea'
     default: 'https://api.github.com'
+    required: false
+  server-type:
+    description:
+      'The type of server to download from. Supported values: github, gitea'
+    default: 'github'
     required: false
   releaseId:
     description: 'The release id to download the file from'

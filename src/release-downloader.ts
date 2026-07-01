@@ -22,9 +22,25 @@ export class ReleaseDownloader {
 
   private apiRoot: string
 
-  constructor(httpClient: thc.HttpClient, githubApiUrl: string) {
+  private serverType: string
+
+  constructor(
+    httpClient: thc.HttpClient,
+    githubApiUrl: string,
+    serverType: string = 'github'
+  ) {
     this.httpClient = httpClient
     this.apiRoot = githubApiUrl
+    this.serverType = serverType
+  }
+
+  private getApiHeaders(): IHeaders {
+    return {
+      Accept:
+        this.serverType === 'gitea'
+          ? 'application/json'
+          : 'application/vnd.github.v3+json'
+    }
   }
 
   async download(
@@ -81,7 +97,7 @@ export class ReleaseDownloader {
   ): Promise<GithubRelease> {
     core.info(`Fetching latest release for repo ${repoPath}`)
 
-    const headers: IHeaders = { Accept: 'application/vnd.github.v3+json' }
+    const headers: IHeaders = this.getApiHeaders()
 
     const url = !preRelease
       ? `${this.apiRoot}/repos/${repoPath}/releases/latest`
@@ -103,6 +119,19 @@ export class ReleaseDownloader {
     if (!preRelease) {
       release = JSON.parse(responseBody.toString())
       core.info(`Found latest release version: ${release.tag_name}`)
+      core.info(`[DEBUG] Release ID: ${release.id}`)
+      core.info(`[DEBUG] tarball_url: ${release.tarball_url}`)
+      core.info(`[DEBUG] zipball_url: ${release.zipball_url}`)
+      core.info(
+        `[DEBUG] Assets count: ${release.assets ? release.assets.length : 'undefined'}`
+      )
+      if (release.assets) {
+        for (const a of release.assets) {
+          core.info(
+            `[DEBUG] Asset: name=${a.name}, id=${a.id}, url=${a.url}, browser_download_url=${a.browser_download_url}`
+          )
+        }
+      }
     } else {
       const allReleases: GithubRelease[] = JSON.parse(responseBody.toString())
       const latestPreRelease: GithubRelease | undefined = allReleases.find(
@@ -137,7 +166,7 @@ export class ReleaseDownloader {
       throw new ConfigError('Please input a valid tag')
     }
 
-    const headers: IHeaders = { Accept: 'application/vnd.github.v3+json' }
+    const headers: IHeaders = this.getApiHeaders()
     const url = `${this.apiRoot}/repos/${repoPath}/releases/tags/${tag}`
 
     const response = await this.httpClient.get(url, headers)
@@ -172,7 +201,7 @@ export class ReleaseDownloader {
       throw new ConfigError('Please input a valid release ID')
     }
 
-    const headers: IHeaders = { Accept: 'application/vnd.github.v3+json' }
+    const headers: IHeaders = this.getApiHeaders()
     const url = `${this.apiRoot}/repos/${repoPath}/releases/${id}`
 
     const response = await this.httpClient.get(url, headers)
@@ -190,6 +219,39 @@ export class ReleaseDownloader {
     core.info(`Found release tag: ${release.tag_name}`)
 
     return release
+  }
+
+  /**
+   * Resolves the download URL for a Gitea asset.
+   * Falls back to API endpoint if browser_download_url is missing or relative.
+   */
+  private resolveGiteaAssetUrl(
+    asset: { id: number; browser_download_url?: string },
+    repoPath: string,
+    releaseId: number
+  ): string {
+    const rawUrl = asset.browser_download_url
+    core.info(
+      `[DEBUG] resolveGiteaAssetUrl: asset.id=${asset.id}, rawUrl=${rawUrl}, repoPath=${repoPath}, releaseId=${releaseId}`
+    )
+    core.info(`[DEBUG] apiRoot=${this.apiRoot}`)
+    if (rawUrl) {
+      try {
+        new URL(rawUrl)
+        core.info(`[DEBUG] Using absolute browser_download_url: ${rawUrl}`)
+        return rawUrl
+      } catch {
+        // Relative URL — prepend server base URL
+        const baseUrl = this.apiRoot.replace(/\/api\/v\d+\/?$/, '')
+        const resolved = `${baseUrl}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`
+        core.info(`[DEBUG] Using relative URL resolved to: ${resolved}`)
+        return resolved
+      }
+    }
+    // No browser_download_url — use the API asset endpoint
+    const fallback = `${this.apiRoot}/repos/${repoPath}/releases/${releaseId}/assets/${asset.id}`
+    core.info(`[DEBUG] Using API fallback URL: ${fallback}`)
+    return fallback
   }
 
   private resolveAssets(
@@ -210,7 +272,14 @@ export class ReleaseDownloader {
 
           const dData: DownloadMetaData = {
             fileName: asset.name,
-            url: asset['url'],
+            url:
+              this.serverType === 'gitea'
+                ? this.resolveGiteaAssetUrl(
+                    asset,
+                    downloadSettings.sourceRepoPath,
+                    ghRelease.id
+                  )
+                : asset['url'],
             isTarBallOrZipBall: false
           }
           downloads.push(dData)
@@ -286,6 +355,8 @@ export class ReleaseDownloader {
     }
 
     core.info(`Downloading file: ${asset.fileName} to: ${outputPath}`)
+    core.info(`[DEBUG] Download URL: ${asset.url}`)
+    core.info(`[DEBUG] URL length: ${asset.url ? asset.url.length : 'null/undefined'}`)
     const response = await this.httpClient.get(asset.url, headers)
 
     if (response.message.statusCode === 200) {

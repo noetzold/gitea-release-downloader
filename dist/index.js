@@ -32807,6 +32807,10 @@ function getInputs() {
     const extractPath = extractPathInput
         ? path$1.resolve(githubWorkspacePath, extractPathInput)
         : outFilePath;
+    const serverType = getInput('server-type') || 'github';
+    if (serverType !== 'github' && serverType !== 'gitea') {
+        throw new ConfigError(`Invalid server-type '${serverType}'. Supported values: github, gitea`);
+    }
     return {
         sourceRepoPath: repositoryPath,
         isLatest: latestFlag,
@@ -32818,7 +32822,8 @@ function getInputs() {
         zipBall: getBooleanInput('zipBall'),
         extractAssets: getBooleanInput('extract'),
         outFilePath,
-        extractPath
+        extractPath,
+        serverType
     };
 }
 
@@ -39003,9 +39008,18 @@ minimatch.unescape = unescape$1;
 class ReleaseDownloader {
     httpClient;
     apiRoot;
-    constructor(httpClient, githubApiUrl) {
+    serverType;
+    constructor(httpClient, githubApiUrl, serverType = 'github') {
         this.httpClient = httpClient;
         this.apiRoot = githubApiUrl;
+        this.serverType = serverType;
+    }
+    getApiHeaders() {
+        return {
+            Accept: this.serverType === 'gitea'
+                ? 'application/json'
+                : 'application/vnd.github.v3+json'
+        };
     }
     async download(downloadSettings) {
         let ghRelease;
@@ -39035,7 +39049,7 @@ class ReleaseDownloader {
      */
     async getlatestRelease(repoPath, preRelease) {
         info(`Fetching latest release for repo ${repoPath}`);
-        const headers = { Accept: 'application/vnd.github.v3+json' };
+        const headers = this.getApiHeaders();
         const url = !preRelease
             ? `${this.apiRoot}/repos/${repoPath}/releases/latest`
             : `${this.apiRoot}/repos/${repoPath}/releases`;
@@ -39048,6 +39062,15 @@ class ReleaseDownloader {
         if (!preRelease) {
             release = JSON.parse(responseBody.toString());
             info(`Found latest release version: ${release.tag_name}`);
+            info(`[DEBUG] Release ID: ${release.id}`);
+            info(`[DEBUG] tarball_url: ${release.tarball_url}`);
+            info(`[DEBUG] zipball_url: ${release.zipball_url}`);
+            info(`[DEBUG] Assets count: ${release.assets ? release.assets.length : 'undefined'}`);
+            if (release.assets) {
+                for (const a of release.assets) {
+                    info(`[DEBUG] Asset: name=${a.name}, id=${a.id}, url=${a.url}, browser_download_url=${a.browser_download_url}`);
+                }
+            }
         }
         else {
             const allReleases = JSON.parse(responseBody.toString());
@@ -39072,7 +39095,7 @@ class ReleaseDownloader {
         if (tag === '') {
             throw new ConfigError('Please input a valid tag');
         }
-        const headers = { Accept: 'application/vnd.github.v3+json' };
+        const headers = this.getApiHeaders();
         const url = `${this.apiRoot}/repos/${repoPath}/releases/tags/${tag}`;
         const response = await this.httpClient.get(url, headers);
         if (response.message.statusCode !== 200) {
@@ -39093,7 +39116,7 @@ class ReleaseDownloader {
         if (id === '') {
             throw new ConfigError('Please input a valid release ID');
         }
-        const headers = { Accept: 'application/vnd.github.v3+json' };
+        const headers = this.getApiHeaders();
         const url = `${this.apiRoot}/repos/${repoPath}/releases/${id}`;
         const response = await this.httpClient.get(url, headers);
         if (response.message.statusCode !== 200) {
@@ -39103,6 +39126,33 @@ class ReleaseDownloader {
         const release = JSON.parse(responseBody.toString());
         info(`Found release tag: ${release.tag_name}`);
         return release;
+    }
+    /**
+     * Resolves the download URL for a Gitea asset.
+     * Falls back to API endpoint if browser_download_url is missing or relative.
+     */
+    resolveGiteaAssetUrl(asset, repoPath, releaseId) {
+        const rawUrl = asset.browser_download_url;
+        info(`[DEBUG] resolveGiteaAssetUrl: asset.id=${asset.id}, rawUrl=${rawUrl}, repoPath=${repoPath}, releaseId=${releaseId}`);
+        info(`[DEBUG] apiRoot=${this.apiRoot}`);
+        if (rawUrl) {
+            try {
+                new URL(rawUrl);
+                info(`[DEBUG] Using absolute browser_download_url: ${rawUrl}`);
+                return rawUrl;
+            }
+            catch {
+                // Relative URL — prepend server base URL
+                const baseUrl = this.apiRoot.replace(/\/api\/v\d+\/?$/, '');
+                const resolved = `${baseUrl}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+                info(`[DEBUG] Using relative URL resolved to: ${resolved}`);
+                return resolved;
+            }
+        }
+        // No browser_download_url — use the API asset endpoint
+        const fallback = `${this.apiRoot}/repos/${repoPath}/releases/${releaseId}/assets/${asset.id}`;
+        info(`[DEBUG] Using API fallback URL: ${fallback}`);
+        return fallback;
     }
     resolveAssets(ghRelease, downloadSettings) {
         const downloads = [];
@@ -39116,7 +39166,9 @@ class ReleaseDownloader {
                     }
                     const dData = {
                         fileName: asset.name,
-                        url: asset['url'],
+                        url: this.serverType === 'gitea'
+                            ? this.resolveGiteaAssetUrl(asset, downloadSettings.sourceRepoPath, ghRelease.id)
+                            : asset['url'],
                         isTarBallOrZipBall: false
                     };
                     downloads.push(dData);
@@ -39172,6 +39224,8 @@ class ReleaseDownloader {
             headers['Accept'] = '*/*';
         }
         info(`Downloading file: ${asset.fileName} to: ${outputPath}`);
+        info(`[DEBUG] Download URL: ${asset.url}`);
+        info(`[DEBUG] URL length: ${asset.url ? asset.url.length : 'null/undefined'}`);
         const response = await this.httpClient.get(asset.url, headers);
         if (response.message.statusCode === 200) {
             return this.saveFile(outputPath, asset.fileName, response);
@@ -40476,11 +40530,15 @@ async function run() {
         const downloadSettings = getInputs();
         const authToken = getInput('token');
         const githubApiUrl = getInput('github-api-url');
+        info(`[DEBUG] github-api-url input: "${githubApiUrl}"`);
+        info(`[DEBUG] server-type: "${downloadSettings.serverType}"`);
+        info(`[DEBUG] repository: "${downloadSettings.sourceRepoPath}"`);
+        info(`[DEBUG] fileName: "${downloadSettings.fileName}"`);
         const credentialHandler = new HandlersExports.BearerCredentialHandler(authToken, false);
         const httpClient = new HttpClientExports.HttpClient('gh-api-client', [
             credentialHandler
         ]);
-        const downloader = new ReleaseDownloader(httpClient, githubApiUrl);
+        const downloader = new ReleaseDownloader(httpClient, githubApiUrl, downloadSettings.serverType);
         const res = await downloader.download(downloadSettings);
         if (downloadSettings.extractAssets) {
             for (const asset of res) {
