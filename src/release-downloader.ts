@@ -119,6 +119,19 @@ export class ReleaseDownloader {
     if (!preRelease) {
       release = JSON.parse(responseBody.toString())
       core.info(`Found latest release version: ${release.tag_name}`)
+      core.info(`[DEBUG] Release ID: ${release.id}`)
+      core.info(`[DEBUG] tarball_url: ${release.tarball_url}`)
+      core.info(`[DEBUG] zipball_url: ${release.zipball_url}`)
+      core.info(
+        `[DEBUG] Assets count: ${release.assets ? release.assets.length : 'undefined'}`
+      )
+      if (release.assets) {
+        for (const a of release.assets) {
+          core.info(
+            `[DEBUG] Asset: name=${a.name}, id=${a.id}, url=${a.url}, browser_download_url=${a.browser_download_url}`
+          )
+        }
+      }
     } else {
       const allReleases: GithubRelease[] = JSON.parse(responseBody.toString())
       const latestPreRelease: GithubRelease | undefined = allReleases.find(
@@ -218,18 +231,27 @@ export class ReleaseDownloader {
     releaseId: number
   ): string {
     const rawUrl = asset.browser_download_url
+    core.info(
+      `[DEBUG] resolveGiteaAssetUrl: asset.id=${asset.id}, rawUrl=${rawUrl}, repoPath=${repoPath}, releaseId=${releaseId}`
+    )
+    core.info(`[DEBUG] apiRoot=${this.apiRoot}`)
     if (rawUrl) {
       try {
         new URL(rawUrl)
+        core.info(`[DEBUG] Using absolute browser_download_url: ${rawUrl}`)
         return rawUrl
       } catch {
         // Relative URL — prepend server base URL
         const baseUrl = this.apiRoot.replace(/\/api\/v\d+\/?$/, '')
-        return `${baseUrl}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`
+        const resolved = `${baseUrl}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`
+        core.info(`[DEBUG] Using relative URL resolved to: ${resolved}`)
+        return resolved
       }
     }
     // No browser_download_url — use the API asset endpoint
-    return `${this.apiRoot}/repos/${repoPath}/releases/${releaseId}/assets/${asset.id}`
+    const fallback = `${this.apiRoot}/repos/${repoPath}/releases/${releaseId}/assets/${asset.id}`
+    core.info(`[DEBUG] Using API fallback URL: ${fallback}`)
+    return fallback
   }
 
   private resolveAssets(
@@ -333,6 +355,8 @@ export class ReleaseDownloader {
     }
 
     core.info(`Downloading file: ${asset.fileName} to: ${outputPath}`)
+    core.info(`[DEBUG] Download URL: ${asset.url}`)
+    core.info(`[DEBUG] URL length: ${asset.url ? asset.url.length : 'null/undefined'}`)
     const response = await this.httpClient.get(asset.url, headers)
 
     if (response.message.statusCode === 200) {

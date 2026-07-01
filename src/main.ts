@@ -18,6 +18,11 @@ export async function run(): Promise<void> {
     const authToken = core.getInput('token')
     const githubApiUrl = core.getInput('github-api-url')
 
+    core.info(`[DEBUG] github-api-url input: "${githubApiUrl}"`)
+    core.info(`[DEBUG] server-type: "${downloadSettings.serverType}"`)
+    core.info(`[DEBUG] repository: "${downloadSettings.sourceRepoPath}"`)
+    core.info(`[DEBUG] fileName: "${downloadSettings.fileName}"`)
+
     const credentialHandler = new handlers.BearerCredentialHandler(
       authToken,
       false
